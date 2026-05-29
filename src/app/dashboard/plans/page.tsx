@@ -1,5 +1,6 @@
 'use client'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { storesApi } from '@/lib/api'
 import { formatCLP, cn, PLAN_COLORS } from '@/lib/utils'
 import type { Plan, PlanStatus } from '@/types'
@@ -31,6 +32,34 @@ export default function PlansPage() {
   })
 
   const currentTier = planStatus?.active_plan?.tier
+
+  const qc = useQueryClient()
+  const [busyGateway, setBusyGateway] = useState<string | null>(null)
+  const [selectedTier, setSelectedTier] = useState<string | null>(null)
+
+  // Al volver de la pasarela (?sub=success|failed) refresca el estado y avisa
+  useEffect(() => {
+    const sub = new URLSearchParams(window.location.search).get('sub')
+    if (sub === 'success') {
+      qc.invalidateQueries({ queryKey: ['plan-status'] })
+      alert('¡Suscripción activada! 🎉')
+    } else if (sub === 'failed') {
+      alert('El pago no se completó. Intenta de nuevo.')
+    }
+  }, [qc])
+
+  const subscribe = useMutation({
+    mutationFn: ({ tier, gateway }: { tier: string; gateway: string }) =>
+      storesApi.subscribe(tier, gateway).then(r => r.data),
+    onMutate: ({ gateway }) => setBusyGateway(gateway),
+    onSuccess: (data: { redirect_url?: string }) => {
+      if (data?.redirect_url) window.location.href = data.redirect_url
+    },
+    onError: () => {
+      setBusyGateway(null)
+      alert('No se pudo iniciar el pago. Intenta de nuevo.')
+    },
+  })
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -126,12 +155,15 @@ export default function PlansPage() {
                   Plan actual ✓
                 </div>
               ) : (
-                <button className={cn(
-                  'w-full py-2.5 rounded-xl text-sm font-semibold transition-all',
-                  isPopular
-                    ? 'bg-white text-black hover:bg-gray-100'
-                    : 'bg-black text-white hover:bg-gray-800'
-                )}>
+                <button
+                  onClick={() => plan.tier !== 'free' && setSelectedTier(plan.tier)}
+                  disabled={plan.tier === 'free'}
+                  className={cn(
+                    'w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed',
+                    isPopular
+                      ? 'bg-white text-black hover:bg-gray-100'
+                      : 'bg-black text-white hover:bg-gray-800'
+                  )}>
                   {plan.tier === 'free' ? 'Bajar a Free' : `Contratar ${plan.name}`}
                 </button>
               )}
@@ -181,6 +213,47 @@ export default function PlansPage() {
       <p className="text-center text-xs text-gray-400 mt-6">
         Los pagos se procesan vía Transbank Webpay y Mercado Pago · Sin permanencia · Cancela cuando quieras
       </p>
+
+      {/* Selector de pasarela al contratar */}
+      {selectedTier && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !busyGateway && setSelectedTier(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-black mb-1">¿Cómo quieres pagar?</h3>
+            <p className="text-sm text-gray-500 mb-5">Elige tu medio de pago para el plan.</p>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => subscribe.mutate({ tier: selectedTier, gateway: 'webpay' })}
+                disabled={busyGateway !== null}
+                className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+              >
+                {busyGateway === 'webpay' ? 'Redirigiendo…' : '💳 Webpay (Transbank)'}
+              </button>
+              <button
+                onClick={() => subscribe.mutate({ tier: selectedTier, gateway: 'mercadopago' })}
+                disabled={busyGateway !== null}
+                className="w-full py-3 rounded-xl bg-sky-500 text-white font-semibold hover:bg-sky-600 transition disabled:opacity-50"
+              >
+                {busyGateway === 'mercadopago' ? 'Redirigiendo…' : '💙 MercadoPago'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setSelectedTier(null)}
+              disabled={busyGateway !== null}
+              className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-gray-800 transition disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

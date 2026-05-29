@@ -56,6 +56,7 @@ export const storesApi = {
   me: () => api.get('/api/stores/me/'),
   update: (data: object) => api.patch('/api/stores/me/', data),
   planStatus: () => api.get('/api/stores/me/plan/'),
+  subscribe: (tier: string, gateway: string) => api.post('/api/stores/me/subscribe/', { tier, gateway }),
   public: (slug: string) => api.get(`/api/stores/${slug}/`),
 }
 
