@@ -73,3 +73,10 @@ export const catalogApi = {
   categories: () => api.get('/api/catalog/categories/'),
   createCategory: (data: object) => api.post('/api/catalog/categories/', data),
 }
+
+export const salesApi = {
+  checkout: (data: object) => api.post('/api/sales/checkout/', data),
+  mySales: (params?: object) => api.get('/api/sales/my-sales/', { params }),
+  saleDetail: (orderRef: string) => api.get(`/api/sales/${orderRef}/`),
+  analytics: (period?: number) => api.get('/api/sales/analytics/', { params: period ? { period } : {} }),
+}
