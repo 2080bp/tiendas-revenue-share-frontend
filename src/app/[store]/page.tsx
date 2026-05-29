@@ -2,18 +2,31 @@
 import { useQuery } from '@tanstack/react-query'
 import { catalogApi, storesApi } from '@/lib/api'
 import { formatCLP } from '@/lib/utils'
-import type { Product, Store } from '@/types'
+import type { Product } from '@/types'
 import { useState, use } from 'react'
-import { ShoppingCart, Search, MessageCircle, Package } from 'lucide-react'
+import { ShoppingCart, Search, Package } from 'lucide-react'
 import { CartDrawer } from '@/components/storefront/CartDrawer'
+import { WhatsAppButton } from '@/components/storefront/WhatsAppButton'
 
 export type CartItem = Product & { quantity: number }
+
+interface StorePublic {
+  name: string; slug: string; description: string
+  logo_url: string; primary_color: string
+  whatsapp_number: string; country_code: string; currency_code: string
+}
 
 export default function StorefrontPage({ params }: { params: Promise<{ store: string }> }) {
   const { store: storeSlug } = use(params)
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
+
+  const { data: storeInfo } = useQuery<StorePublic>({
+    queryKey: ['store-public', storeSlug],
+    queryFn: () => storesApi.public(storeSlug).then(r => r.data),
+    staleTime: 5 * 60_000,
+  })
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['storefront', storeSlug],
@@ -22,8 +35,7 @@ export default function StorefrontPage({ params }: { params: Promise<{ store: st
     ),
   })
 
-  // Info básica de la tienda desde los productos (o endpoint público futuro)
-  const storeName = storeSlug.replace(/-/g, ' ')
+  const storeName = storeInfo?.name ?? storeSlug.replace(/-/g, ' ')
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -134,6 +146,11 @@ export default function StorefrontPage({ params }: { params: Promise<{ store: st
           Tienda impulsada por <span className="font-bold text-black">2080 Tiendas</span>
         </p>
       </footer>
+
+      {/* WhatsApp flotante */}
+      {storeInfo?.whatsapp_number && (
+        <WhatsAppButton phone={storeInfo.whatsapp_number} storeName={storeName} />
+      )}
 
       {/* Carrito */}
       <CartDrawer

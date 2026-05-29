@@ -1,16 +1,23 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { catalogApi } from '@/lib/api'
+import { catalogApi, storesApi } from '@/lib/api'
 import { formatCLP } from '@/lib/utils'
 import type { Product } from '@/types'
 import { use, useState } from 'react'
 import { ShoppingCart, ArrowLeft, Package, Truck, Shield } from 'lucide-react'
 import Link from 'next/link'
+import { WhatsAppButton } from '@/components/storefront/WhatsAppButton'
 
 export default function ProductPage({ params }: { params: Promise<{ store: string; slug: string }> }) {
   const { store: storeSlug, slug } = use(params)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+
+  const { data: storeInfo } = useQuery({
+    queryKey: ['store-public', storeSlug],
+    queryFn: () => storesApi.public(storeSlug).then(r => r.data),
+    staleTime: 5 * 60_000,
+  })
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['storefront', storeSlug],
@@ -169,6 +176,15 @@ export default function ProductPage({ params }: { params: Promise<{ store: strin
           </div>
         </div>
       </main>
+
+      {/* WhatsApp flotante */}
+      {storeInfo?.whatsapp_number && (
+        <WhatsAppButton
+          phone={storeInfo.whatsapp_number}
+          storeName={storeInfo.name ?? storeSlug}
+          message={`Hola, me interesa el producto "${product?.name}" 👀`}
+        />
+      )}
     </div>
   )
 }

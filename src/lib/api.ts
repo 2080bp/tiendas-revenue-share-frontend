@@ -56,6 +56,7 @@ export const storesApi = {
   me: () => api.get('/api/stores/me/'),
   update: (data: object) => api.patch('/api/stores/me/', data),
   planStatus: () => api.get('/api/stores/me/plan/'),
+  public: (slug: string) => api.get(`/api/stores/${slug}/`),
 }
 
 export const catalogApi = {
