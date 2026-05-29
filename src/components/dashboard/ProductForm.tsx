@@ -7,12 +7,19 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Card, CardHeader } from '@/components/ui/Card'
 import type { Product, Category } from '@/types'
-import { ImageIcon, Save, Trash2, Eye } from 'lucide-react'
+import { ImageIcon, Save, Trash2, Eye, Sparkles, Loader2, Copy, Check, Instagram, Facebook } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProductFormProps {
   product?: Product
 }
+
+const TONES = [
+  { value: 'moderno',    label: 'Moderno'    },
+  { value: 'formal',     label: 'Formal'     },
+  { value: 'divertido',  label: 'Divertido'  },
+  { value: 'minimalista',label: 'Minimalista'},
+]
 
 export function ProductForm({ product }: ProductFormProps) {
   const router = useRouter()
@@ -37,7 +44,14 @@ export function ProductForm({ product }: ProductFormProps) {
     is_featured:       product?.is_featured ?? false,
   })
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors]         = useState<Record<string, string>>({})
+  const [aiTone, setAiTone]         = useState('moderno')
+  const [aiLoading, setAiLoading]   = useState(false)
+  const [aiError, setAiError]       = useState('')
+  const [socialPlatform, setSP]     = useState('instagram')
+  const [socialLoading, setSL]      = useState(false)
+  const [socialPost, setSocialPost] = useState('')
+  const [copied, setCopied]         = useState(false)
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
@@ -82,9 +96,59 @@ export function ProductForm({ product }: ProductFormProps) {
     mutation.mutate(form)
   }
 
+  async function handleAiDescription() {
+    if (!form.name.trim()) { setAiError('Primero escribe el nombre del producto.'); return }
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const catName = categories.find(c => String(c.id) === form.category)?.name || ''
+      const { data } = await catalogApi.aiDescription({
+        name: form.name,
+        category: catName,
+        price: form.price,
+        tone: aiTone,
+      })
+      setForm(p => ({
+        ...p,
+        description:      data.description      || p.description,
+        meta_title:       data.meta_title        || p.meta_title,
+        meta_description: data.meta_description  || p.meta_description,
+      }))
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setAiError(e?.response?.data?.detail || 'Error al generar contenido. Intenta de nuevo.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  async function handleSocialPost() {
+    if (!form.name.trim()) return
+    setSL(true)
+    setSocialPost('')
+    try {
+      const { data } = await catalogApi.aiSocialPost({
+        name: form.name,
+        price: form.price,
+        platform: socialPlatform,
+      })
+      setSocialPost(data.post || '')
+    } catch {
+      setSocialPost('Error al generar el post. Intenta de nuevo.')
+    } finally {
+      setSL(false)
+    }
+  }
+
+  async function handleCopy(text: string) {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   // Calcula margen en vivo
-  const price = parseFloat(form.price) || 0
-  const cost  = parseFloat(form.cost_price) || 0
+  const price  = parseFloat(form.price) || 0
+  const cost   = parseFloat(form.cost_price) || 0
   const margin = price > 0 && cost > 0 ? ((price - cost) / price * 100).toFixed(1) : null
 
   return (
@@ -137,10 +201,33 @@ export function ProductForm({ product }: ProductFormProps) {
                 error={errors.short_description}
                 placeholder="Una línea que aparece en la lista de productos (máx 300 caracteres)"
                 maxLength={300} />
-              <Textarea label="Descripción completa" rows={5}
-                value={form.description} onChange={set('description')}
-                error={errors.description}
-                placeholder="Describe el producto, materiales, instrucciones de cuidado, etc." />
+
+              {/* Descripción + botón IA */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Descripción completa
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select value={aiTone} onChange={e => setAiTone(e.target.value)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                      {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <button type="button" onClick={handleAiDescription} disabled={aiLoading || !form.name.trim()}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1.5 rounded-lg hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 transition">
+                      {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      Generar con IA
+                    </button>
+                  </div>
+                </div>
+                {aiError && (
+                  <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg mb-2">{aiError}</p>
+                )}
+                <Textarea rows={5}
+                  value={form.description} onChange={set('description')}
+                  error={errors.description}
+                  placeholder="Describe el producto, materiales, instrucciones de cuidado, etc." />
+              </div>
             </div>
           </Card>
 
@@ -230,6 +317,58 @@ export function ProductForm({ product }: ProductFormProps) {
                 placeholder="Descripción que aparece en los resultados de Google..." />
             </div>
           </Card>
+
+          {/* IA — Redes Sociales */}
+          <Card>
+            <CardHeader
+              title="Agente IA — Post para redes"
+              subtitle="Genera contenido listo para publicar"
+            />
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                {[
+                  { value: 'instagram', icon: Instagram, label: 'Instagram' },
+                  { value: 'facebook',  icon: Facebook,  label: 'Facebook'  },
+                  { value: 'tiktok',    icon: null,      label: 'TikTok'    },
+                ].map(p => (
+                  <button key={p.value} type="button"
+                    onClick={() => setSP(p.value)}
+                    className={cn('flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition',
+                      socialPlatform === p.value
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    )}>
+                    {p.icon && <p.icon size={13} />}
+                    {p.label}
+                  </button>
+                ))}
+                <button type="button" onClick={handleSocialPost}
+                  disabled={socialLoading || !form.name.trim()}
+                  className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 transition">
+                  {socialLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  Generar post
+                </button>
+              </div>
+
+              {socialLoading && (
+                <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                  <Loader2 size={16} className="animate-spin text-indigo-500" />
+                  <p className="text-sm text-gray-500">Generando post con IA...</p>
+                </div>
+              )}
+
+              {socialPost && !socialLoading && (
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 relative">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{socialPost}</pre>
+                  <button type="button" onClick={() => handleCopy(socialPost)}
+                    className="absolute top-3 right-3 flex items-center gap-1 text-xs text-indigo-600 bg-white border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-50 transition">
+                    {copied ? <Check size={11} /> : <Copy size={11} />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
 
         {/* Columna lateral */}
@@ -302,6 +441,17 @@ export function ProductForm({ product }: ProductFormProps) {
               </label>
             </div>
           </Card>
+
+          {/* IA — badge si no tiene plan Pro */}
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles size={16} className="text-indigo-600" />
+              <p className="text-sm font-bold text-indigo-800">Agente IA</p>
+            </div>
+            <p className="text-xs text-indigo-700 leading-relaxed">
+              Genera descripciones SEO, posts para redes y contenido de marketing con un click. Disponible en plan Pro.
+            </p>
+          </div>
 
           {errors.non_field_errors && (
             <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">

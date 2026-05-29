@@ -73,6 +73,12 @@ export const catalogApi = {
   // Categorías
   categories: () => api.get('/api/catalog/categories/'),
   createCategory: (data: object) => api.post('/api/catalog/categories/', data),
+
+  // IA
+  aiDescription: (data: { name: string; category?: string; price?: string; keywords?: string; tone?: string }) =>
+    api.post('/api/catalog/ai/description/', data),
+  aiSocialPost: (data: { name: string; price?: string; platform?: string }) =>
+    api.post('/api/catalog/ai/social-post/', data),
 }
 
 export const salesApi = {
