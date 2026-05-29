@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Card, CardHeader } from '@/components/ui/Card'
 import type { Product, Category } from '@/types'
-import { ImageIcon, Save, Trash2, Eye, Sparkles, Loader2, Copy, Check, Instagram, Facebook } from 'lucide-react'
+import { ImageIcon, Save, Trash2, Eye, Sparkles, Loader2, Copy, Check, Share2, Facebook } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProductFormProps {
@@ -327,7 +327,7 @@ export function ProductForm({ product }: ProductFormProps) {
             <div className="space-y-4">
               <div className="flex gap-2">
                 {[
-                  { value: 'instagram', icon: Instagram, label: 'Instagram' },
+                  { value: 'instagram', icon: Share2, label: 'Instagram' },
                   { value: 'facebook',  icon: Facebook,  label: 'Facebook'  },
                   { value: 'tiktok',    icon: null,      label: 'TikTok'    },
                 ].map(p => (

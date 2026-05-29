@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   ShoppingBag, Zap, BarChart3, Globe, Package, Truck,
   MessageCircle, Star, Check, ChevronRight, ArrowRight,
-  Instagram, Facebook, TrendingUp,
+  Share2, Facebook, TrendingUp,
 } from 'lucide-react'
 
 const PLANS = [
@@ -343,7 +343,7 @@ export default function LandingPage() {
           <div className="border-t border-gray-100 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-gray-400">© 2026 2080.store · Hecho con ❤️ en Chile 🇨🇱</p>
             <div className="flex gap-4">
-              <a href="#" className="text-gray-400 hover:text-black transition"><Instagram size={18} /></a>
+              <a href="#" className="text-gray-400 hover:text-black transition"><Share2 size={18} /></a>
               <a href="#" className="text-gray-400 hover:text-black transition"><Facebook size={18} /></a>
               <a href="#" className="text-gray-400 hover:text-black transition"><TrendingUp size={18} /></a>
             </div>
